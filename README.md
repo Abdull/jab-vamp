@@ -9,7 +9,7 @@ mvn install:install-file -Dfile=jave-1.0.2.jar -DgroupId=it.sauronsoftware.jave 
 mvn package
 ```
 
-Once build has finished, start up like so:
+Once building has finished, start up like so:
 ```
 java -jar target/jab-vamp-0.0.3-jar-with-dependencies.jar $(cygpath --mixed ~/my-music-directory/)
 ```

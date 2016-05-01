@@ -21,9 +21,11 @@
 /* This file was modified in 2012 by Thomas Friedel */
 package at.ofai.music.audio;
 
-import TrackAnalyzer.FftPostProcessor;
 import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
+
 import java.util.Arrays;
+
+import com.geeshenk.legacy.trackanalyzer.FftPostProcessor;
 
 /** Class for computing a windowed fast Fourier transform.
  *  Implements some of the window functions for the STFT from

@@ -4,11 +4,11 @@
 
   <groupId>com.geeshenk</groupId>
   <artifactId>jab-vamp</artifactId>
-  <version>0.0.3</version>
+  <version>0.0.4</version>
   <packaging>jar</packaging>
 
   <name>jab-vamp</name>
-  
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -18,40 +18,52 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-math3</artifactId>
       <version>3.0</version>
-  </dependency>
-  <dependency>
-    <groupId>org</groupId>
-    <artifactId>jaudiotagger</artifactId>
-    <version>2.0.3</version>
-  </dependency>
-  <dependency>
-    <groupId>it.sauronsoftware.jave</groupId>
-    <artifactId>jave</artifactId>
-    <version>1.0.2</version>
-  </dependency>
-  <dependency>
-    <groupId>com.beust</groupId>
-    <artifactId>jcommander</artifactId>
-    <version>1.30</version>
-  </dependency>
-  <dependency>
-    <groupId>com.github.rwl</groupId>
-    <artifactId>jtransforms</artifactId>
-    <version>2.4.0</version>
-  </dependency>
+    </dependency>
+    <dependency>
+      <groupId>org</groupId>
+      <artifactId>jaudiotagger</artifactId>
+      <version>2.0.3</version>
+    </dependency>
+    <dependency>
+      <groupId>it.sauronsoftware.jave</groupId>
+      <artifactId>jave</artifactId>
+      <version>1.0.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.beust</groupId>
+      <artifactId>jcommander</artifactId>
+      <version>1.30</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.rwl</groupId>
+      <artifactId>jtransforms</artifactId>
+      <version>2.4.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.21</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.1.7</version>
+    </dependency>
     
+    
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>3.8.1</version>
+      <version>4.12</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
-  
+
   <build>
-    
+
     <plugins>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -61,32 +73,32 @@
           <target>1.8</target>
         </configuration>
       </plugin>
-      
+
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
-          <configuration>
-            <archive>
-              <manifest>
-                <mainClass>TrackAnalyzer.TrackAnalyzer</mainClass>
-          </manifest>
-        </archive>
-        <descriptorRefs>
-          <descriptorRef>jar-with-dependencies</descriptorRef>
-        </descriptorRefs>
-      </configuration>
-      <executions>
-        <execution>
-          <id>make-assembly</id> <!-- this is used for inheritance merges -->
-          <phase>package</phase> <!-- bind to the packaging phase -->
-          <goals>
-            <goal>single</goal>
-          </goals>
-        </execution>
-      </executions>
-    </plugin>
-      
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>com.geeshenk.legacy.trackanalyzer.TrackAnalyzer</mainClass>
+            </manifest>
+          </archive>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+        </configuration>
+        <executions>
+          <execution>
+            <id>make-assembly</id> <!-- this is used for inheritance merges -->
+            <phase>package</phase> <!-- bind to the packaging phase -->
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
-    
+
   </build>
-  
+
 </project>
