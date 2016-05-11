@@ -1,0 +1,30 @@
+<configuration scan="true">
+  
+  <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+    <encoder>
+      <pattern>from logback-test.xml INFO //: %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <appender name="stdout-debug" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+    <encoder>
+      <pattern>from logback-test.xml DEBUG //: %d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <!--  root level="info">
+    <appender-ref ref="stdout" />
+  </root>
+  
+  <root level="trace">
+    <appender-ref ref="stdout-debug" />
+  </root -->
+  
+  <logger name="com" level="debug">
+    <appender-ref ref="stdout-debug" />
+  </logger>
+</configuration>

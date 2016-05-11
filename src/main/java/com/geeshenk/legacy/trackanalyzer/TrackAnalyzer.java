@@ -43,6 +43,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import org.jaudiotagger.audio.AudioFile;
@@ -59,11 +60,15 @@ import org.jaudiotagger.tag.id3.framebody.FrameBodyTXXX;
 import org.jaudiotagger.tag.mp4.Mp4Tag;
 import org.jaudiotagger.tag.mp4.field.Mp4TagReverseDnsField;
 import org.jaudiotagger.tag.vorbiscomment.VorbisCommentTag;
+import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import com.beust.jcommander.JCommander;
 
 public class TrackAnalyzer {
 
+    private final static org.slf4j.Logger log = LoggerFactory.getLogger(TrackAnalyzer.class);
+    
     CommandLineArgsSpecification thisRuntimeArgsBuilder = new CommandLineArgsSpecification();
     BufferedWriter writeListWriter;
     List<String> audioFilesPaths = new ArrayList<>();
@@ -71,6 +76,11 @@ public class TrackAnalyzer {
     public final ApplicationParameters applicationParameters;
     
     public static void main(String[] args) throws Exception {
+        LogManager.getLogManager().reset();
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+        Logger.getLogger("global").setLevel(Level.FINEST);
+        
         TrackAnalyzer ta = new TrackAnalyzer(args);
         ta.run();
     }
@@ -90,10 +100,10 @@ public class TrackAnalyzer {
         
         // check for debug request
         if (thisRuntimeArgsBuilder.isDebugRequested) {
-            Logger.getLogger(TrackAnalyzer.class.getName()).setLevel(Level.ALL);
-        } else {
-            Logger.getLogger(TrackAnalyzer.class.getName()).setLevel(
-                    Level.WARNING);
+            //ch.qos.logback.classic.Logger LOG = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+            org.slf4j.Logger rootLogger = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+            //rootLogger.
+            //Logger.getLogger(TrackAnalyzer.class.getName()).setLevel(Level.ALL);
         }
         
         // check if it is requested to read in a file-with-a-list-of-audio-file...
@@ -127,17 +137,17 @@ public class TrackAnalyzer {
         }
         
         // add audio file paths from command line
-        System.out.println("before");
+        log.debug("About to iterate through provided audio file paths");
         for (String currentProvidedPath : thisRuntimeArgsBuilder.providedAudioFilePaths) {
-            System.out.println("between 1");
+            log.debug("processing {}", currentProvidedPath);
             File currentFileOrDirectory = new File(currentProvidedPath);
             if ( currentFileOrDirectory.isDirectory() ) {
-                System.out.println("between 2");
+                log.debug("{} is a directory. Entering recursion", currentProvidedPath);
                 List<String> foundAudioFiles = crawlDirectoryForAudioFiles(currentFileOrDirectory);
                 audioFilesPaths.addAll(foundAudioFiles);
             }
             else {
-                System.out.println("between 3" + currentProvidedPath);
+                log.debug("{} is a regular file", currentProvidedPath);
                 audioFilesPaths.add(currentProvidedPath);
             }
         }
@@ -242,7 +252,7 @@ public class TrackAnalyzer {
      * @param wroteTags
      *            true if tags were written successfully
      */
-    public void logDetectionResult(String filename, String key, String bpm,
+    public void writeDetectionResultToLogFile(String filename, String key, String bpm,
             boolean wroteTags) {
         if (!Utils.isEmpty(thisRuntimeArgsBuilder.writeAnalysisResultsToFilePath)) {
             try {
@@ -283,7 +293,7 @@ public class TrackAnalyzer {
             f.commit();
             return true;
         } catch (Exception e) {
-            System.out.println("problem with tags in file " + filename);
+            log.error("problem with tags in file " + filename);
             return false;
         }
     }
@@ -309,13 +319,15 @@ public class TrackAnalyzer {
             // Delete temp file when program exits.
             waveTempFile1.deleteOnExit();
             waveTempFile2.deleteOnExit();
+            log.info("About to decode {} to temporary wave file", originalAudioPath);
             decodeInputFileToWaveAudioFile(new File(originalAudioPath), waveTempFile1, 44100);
+            log.debug("About to decode (copy ?) temporary wave file to second temporary wave file...");
             decodeInputFileToWaveAudioFileWith4410Samples(waveTempFile1, waveTempFile2);
-        } catch (Exception ex) {
-            Logger.getLogger(TrackAnalyzer.class.getName()).log(Level.WARNING,
-                    "error while decoding" + originalAudioPath + ".");
+            log.info("... finished decoding to second temporary wave file.");
+        } catch (Exception e) {
+            log.error("Exception while decoding " + originalAudioPath, e);
             if (waveTempFile1.length() == 0) {
-                logDetectionResult(originalAudioPath, "-", "-", false);
+                writeDetectionResultToLogFile(originalAudioPath, "-", "-", false);
                 deleteTempFiles(waveTempFile1, waveTempFile2);
                 return false;
             }
@@ -326,12 +338,11 @@ public class TrackAnalyzer {
             tempFile2AudioSpecsAndData.loadFromAudioFile(waveTempFile2.getAbsolutePath());
             keyDetectionResult = keyFinder.findKey(tempFile2AudioSpecsAndData, applicationParameters);
             if (keyDetectionResult.globalKeyEstimate == ApplicationParameters.key_t.SILENCE) {
-                System.out.println("SILENCE");
+                log.info("SILENCE");
             }
-        } catch (Exception ex) {
-            Logger.getLogger(TrackAnalyzer.class.getName()).log(Level.SEVERE,
-                    null, ex);
-            logDetectionResult(originalAudioPath, "-", "-", false);
+        } catch (Exception e) {
+            log.error("exception while finding musical key for file " + originalAudioPath, e);
+            writeDetectionResultToLogFile(originalAudioPath, "-", "-", false);
             deleteTempFiles(waveTempFile1, waveTempFile2);
             return false;
         }
@@ -342,49 +353,39 @@ public class TrackAnalyzer {
             if (thisRuntimeArgsBuilder.hiQuality) {
                 try {
                     // decodeAudioFile(new File(filename), temp, 44100);
-                    // @todo hiquality stuff
-                } catch (Exception ex) {
-                    Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                            Level.WARNING,
-                            "couldn't decode " + originalAudioPath
-                                    + " for hiquality bpm detection.", ex);
+                    // TODO hiquality stuff
+                } catch (Exception e) {
+                    log.warn("could not decode " + originalAudioPath + " for high-quality BPM detection", e);
                 }
             }
+            
+            log.debug("about to get BPM for original file {}", originalAudioPath);
             double bpm = BeatRoot.getBPM(tempAbsolutePath);
+            log.debug("BPM result for original file {} is {}", originalAudioPath, bpm);
+            
             if (Double.isNaN(bpm) && !thisRuntimeArgsBuilder.hiQuality) {
                 try {
-                    // bpm couldn't be detected. try again with a higher quality
-                    // wav.
-                    Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                            Level.WARNING,
-                            "bpm couldn't be detected for " + originalAudioPath
-                                    + ". Trying again.");
+                    // bpm couldn't be detected. try again with a higher-quality wav.
+                    log.warn("BPM could not be detected for " + originalAudioPath + ". Trying again with sound higher quality....");
                     decodeInputFileToWaveAudioFile(new File(originalAudioPath), waveTempFile1, 44100);
                     bpm = BeatRoot.getBPM(tempAbsolutePath);
                     if (Double.isNaN(bpm)) {
-                        Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                                Level.WARNING,
-                                "bpm still couldn't be detected for "
-                                        + originalAudioPath + ".");
+                        log.error("BPM could not be detected for high-quality " + originalAudioPath);
                     } else {
-                        Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                                Level.INFO,
-                                "bpm now detected correctly for " + originalAudioPath);
+                        log.info("BPM detected in high quality for " + originalAudioPath);
                     }
                 } catch (Exception ex) {
-                    logDetectionResult(originalAudioPath, "-", "-", false);
+                    writeDetectionResultToLogFile(originalAudioPath, "-", "-", false);
                 }
             } else if (Double.isNaN(bpm) && thisRuntimeArgsBuilder.hiQuality) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.WARNING,
-                        "bpm couldn't be detected for " + originalAudioPath + ".");
+                log.error("BPM could not be detected for high-quality " + originalAudioPath);
             }
             if (!Double.isNaN(bpm)) {
                 formattedBpm = new DecimalFormat("#.#").format(bpm).replaceAll(
                         ",", ".");
             }
         }
-        System.out.printf("%s;%s;%s\n", originalAudioPath,
+        log.info("{};{};{}", originalAudioPath,
                 ApplicationParameters.camelotKey(keyDetectionResult.globalKeyEstimate), formattedBpm);
         
         boolean wroteTags = false;
@@ -392,7 +393,7 @@ public class TrackAnalyzer {
             wroteTags = updateTags(originalAudioPath, formattedBpm,
                     ApplicationParameters.camelotKey(keyDetectionResult.globalKeyEstimate));
         }
-        logDetectionResult(originalAudioPath,
+        writeDetectionResultToLogFile(originalAudioPath,
                 ApplicationParameters.camelotKey(keyDetectionResult.globalKeyEstimate), formattedBpm,
                 wroteTags);
         deleteTempFiles(waveTempFile1, waveTempFile2);
