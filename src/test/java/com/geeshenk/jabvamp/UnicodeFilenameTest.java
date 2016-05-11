@@ -27,7 +27,7 @@ public class UnicodeFilenameTest {
     @Test
     public void analyzeFileWithUnicodeCharacters() throws Exception {
         log.info("About to start TrackAnalyzer");
-        TrackAnalyzer.main(new String[]{MAJORANA_PATH});
+        TrackAnalyzer.main(new String[]{"--debug", MAJORANA_PATH});
         //TrackAnalyzer.main(new String[]{MAJORANA_PATH_UNICODE});
     }
     
@@ -56,5 +56,8 @@ public class UnicodeFilenameTest {
         FFmpegExecutor executor = new FFmpegExecutor(ffmpeg, ffprobe);
        // Run a one-pass encode
        executor.createJob(builder).run();
+       log.info("finished encoding");
+       log.debug("this message is debug only");
+       log.trace("this message is trace only");
     }
 }
