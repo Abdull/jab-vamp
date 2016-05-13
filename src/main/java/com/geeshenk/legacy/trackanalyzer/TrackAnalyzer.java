@@ -63,10 +63,15 @@ import org.jaudiotagger.tag.vorbiscomment.VorbisCommentTag;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.joran.JoranConfigurator;
+import ch.qos.logback.core.joran.spi.JoranException;
+import ch.qos.logback.core.util.StatusPrinter;
+
 import com.beust.jcommander.JCommander;
 
 public class TrackAnalyzer {
-
+    
     private final static org.slf4j.Logger log = LoggerFactory.getLogger(TrackAnalyzer.class);
     
     CommandLineArgsSpecification thisRuntimeArgsBuilder = new CommandLineArgsSpecification();
@@ -76,6 +81,8 @@ public class TrackAnalyzer {
     public final ApplicationParameters applicationParameters;
     
     public static void main(String[] args) throws Exception {
+        
+        // reconfigure JUL for slf4j
         LogManager.getLogManager().reset();
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
@@ -86,9 +93,26 @@ public class TrackAnalyzer {
     }
     
     TrackAnalyzer(String[] cmdArgs) throws Exception {
-        
         JCommander thisRuntimeJCommanderConfiguration = new JCommander(thisRuntimeArgsBuilder, cmdArgs);
         thisRuntimeJCommanderConfiguration.setProgramName("com.geeshenk.legacy.trackanalyzer");
+        
+        // check for debug request
+        if (thisRuntimeArgsBuilder.isDebugRequested) {
+            LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+            
+            try {
+              JoranConfigurator configurator = new JoranConfigurator();
+              configurator.setContext(context);
+              // Call context.reset() to clear any previous configuration, e.g. default 
+              // configuration. For multi-step configuration, omit calling context.reset().
+              context.reset(); 
+              configurator.doConfigure( getClass().getResourceAsStream("/logback-debug.xml") );
+            }
+            catch (JoranException je) {
+              // StatusPrinter will handle this
+            }
+            StatusPrinter.printInCaseOfErrorsOrWarnings(context);
+        }
         
         // check for (no audio files paths provided) or (help request)
         if ( thisRuntimeArgsBuilder.providedAudioFilePaths.isEmpty() && Utils.isEmpty(thisRuntimeArgsBuilder.listOfMusicFilesMaybeMagicEmptyStringFilePath)
@@ -97,14 +121,6 @@ public class TrackAnalyzer {
                thisRuntimeJCommanderConfiguration.usage();
                System.exit(-1);
             }
-        
-        // check for debug request
-        if (thisRuntimeArgsBuilder.isDebugRequested) {
-            //ch.qos.logback.classic.Logger LOG = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
-            org.slf4j.Logger rootLogger = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-            //rootLogger.
-            //Logger.getLogger(TrackAnalyzer.class.getName()).setLevel(Level.ALL);
-        }
         
         // check if it is requested to read in a file-with-a-list-of-audio-file...
         if ( ! Utils.isEmpty(thisRuntimeArgsBuilder.listOfMusicFilesMaybeMagicEmptyStringFilePath)) {
@@ -158,8 +174,8 @@ public class TrackAnalyzer {
             try (BufferedWriter localWriteListBufferedWriter = new BufferedWriter(
                         new FileWriter(thisRuntimeArgsBuilder.writeAnalysisResultsToFilePath)) ){
                 writeListWriter = localWriteListBufferedWriter;
-            } catch (IOException ex) { // writeAnalysisResultsToFilePath not accessible for some reason
-                Logger.getLogger( TrackAnalyzer.class.getName() ).log(Level.SEVERE, null, ex);
+            } catch (IOException e) { // writeAnalysisResultsToFilePath not accessible for some reason
+                log.error("could not create analysis report file", e);
                 System.exit(-1);
             }
         }
@@ -236,9 +252,8 @@ public class TrackAnalyzer {
         attrs.setAudioAttributes(audio);
         Encoder encoder = new Encoder();
         encoder.encode(input, wavoutput, attrs);
-
     }
-
+    
     /**
      * this writes a line to a txt file with the result of the detection process
      * for one file.
@@ -252,17 +267,15 @@ public class TrackAnalyzer {
      * @param wroteTags
      *            true if tags were written successfully
      */
-    public void writeDetectionResultToLogFile(String filename, String key, String bpm,
+    public void writeDetectionResultToReportFile(String filename, String key, String bpm,
             boolean wroteTags) {
         if (!Utils.isEmpty(thisRuntimeArgsBuilder.writeAnalysisResultsToFilePath)) {
             try {
-                writeListWriter.write(filename + ";" + key + ";" + bpm + ";"
-                        + wroteTags);
+                writeListWriter.write(filename + ";" + key + ";" + bpm + ";" + wroteTags);
                 writeListWriter.newLine();
                 writeListWriter.flush();
-            } catch (IOException ex) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            } catch (IOException e) {
+                log.error("Could not add detection result for audio file " + filename + " to report file", e);
             }
         }
     }
@@ -297,7 +310,7 @@ public class TrackAnalyzer {
             return false;
         }
     }
-
+    
     /**
      * runs key and bpm detector on
      *
@@ -319,15 +332,15 @@ public class TrackAnalyzer {
             // Delete temp file when program exits.
             waveTempFile1.deleteOnExit();
             waveTempFile2.deleteOnExit();
-            log.info("About to decode {} to temporary wave file", originalAudioPath);
+            log.debug("About to decode {} to temporary wave file", originalAudioPath);
             decodeInputFileToWaveAudioFile(new File(originalAudioPath), waveTempFile1, 44100);
             log.debug("About to decode (copy ?) temporary wave file to second temporary wave file...");
             decodeInputFileToWaveAudioFileWith4410Samples(waveTempFile1, waveTempFile2);
-            log.info("... finished decoding to second temporary wave file.");
+            log.debug("... finished decoding to second temporary wave file.");
         } catch (Exception e) {
             log.error("Exception while decoding " + originalAudioPath, e);
             if (waveTempFile1.length() == 0) {
-                writeDetectionResultToLogFile(originalAudioPath, "-", "-", false);
+                writeDetectionResultToReportFile(originalAudioPath, "-", "-", false);
                 deleteTempFiles(waveTempFile1, waveTempFile2);
                 return false;
             }
@@ -342,7 +355,7 @@ public class TrackAnalyzer {
             }
         } catch (Exception e) {
             log.error("exception while finding musical key for file " + originalAudioPath, e);
-            writeDetectionResultToLogFile(originalAudioPath, "-", "-", false);
+            writeDetectionResultToReportFile(originalAudioPath, "-", "-", false);
             deleteTempFiles(waveTempFile1, waveTempFile2);
             return false;
         }
@@ -375,7 +388,7 @@ public class TrackAnalyzer {
                         log.info("BPM detected in high quality for " + originalAudioPath);
                     }
                 } catch (Exception ex) {
-                    writeDetectionResultToLogFile(originalAudioPath, "-", "-", false);
+                    writeDetectionResultToReportFile(originalAudioPath, "-", "-", false);
                 }
             } else if (Double.isNaN(bpm) && thisRuntimeArgsBuilder.hiQuality) {
                 log.error("BPM could not be detected for high-quality " + originalAudioPath);
@@ -393,7 +406,7 @@ public class TrackAnalyzer {
             wroteTags = updateTags(originalAudioPath, formattedBpm,
                     ApplicationParameters.camelotKey(keyDetectionResult.globalKeyEstimate));
         }
-        writeDetectionResultToLogFile(originalAudioPath,
+        writeDetectionResultToReportFile(originalAudioPath,
                 ApplicationParameters.camelotKey(keyDetectionResult.globalKeyEstimate), formattedBpm,
                 wroteTags);
         deleteTempFiles(waveTempFile1, waveTempFile2);
@@ -430,20 +443,18 @@ public class TrackAnalyzer {
             try {
                 pool.take().get();
             } catch (InterruptedException e) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.SEVERE, null, e);
+                log.error("Problem with taking and/or calculating some work package", e);
             }
         }
         threadPool.shutdown();
         if (!Utils.isEmpty(thisRuntimeArgsBuilder.writeAnalysisResultsToFilePath)) {
             try {
                 writeListWriter.close();
-            } catch (IOException ex) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            } catch (IOException e) {
+                log.error("Could not close report file", e);
             }
         }
-        System.exit(0);
+        //System.exit(0);
     }
     
     /**
@@ -499,16 +510,14 @@ public class TrackAnalyzer {
             try {
                 tag.setField(frame);
             } catch (FieldDataInvalidException e) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.SEVERE, null, e);
+                log.error("Problem setting " + frame + " to audio file " + audioFile.getFile().getAbsolutePath(), e);
                 return false;
             }
         } else if (tag instanceof FlacTag) {
             try {
                 ((FlacTag) tag).setField(description, text);
-            } catch (KeyNotFoundException ex) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            } catch (KeyNotFoundException e) {
+                log.error("Could not set field " + description + "," + text + " to audio file " + audioFile.getFile().getAbsolutePath(), e );
                 return false;
             } catch (FieldDataInvalidException ex) {
                 return false;
@@ -523,33 +532,26 @@ public class TrackAnalyzer {
             // TagField field = new Mp4TagTextField(description, text);
             try {
                 tag.setField(field);
-            } catch (FieldDataInvalidException ex) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            } catch (FieldDataInvalidException e) {
+                log.error("Could not set field " + field + " to audio file " + audioFile.getFile().getAbsolutePath(), e );
                 return false;
             }
         } else if (tag instanceof VorbisCommentTag) {
             try {
                 ((VorbisCommentTag) tag).setField(description, text);
-            } catch (KeyNotFoundException ex) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            } catch (KeyNotFoundException e) {
+                log.error("Could not set field " + description + "," + text + " to audio file " + audioFile.getFile().getAbsolutePath() + ". Key not found.", e );
                 return false;
-            } catch (FieldDataInvalidException ex) {
-                Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                        Level.SEVERE, null, ex);
+            } catch (FieldDataInvalidException e) {
+                log.error("Could not set field " + description + "," + text + " to audio file " + audioFile.getFile().getAbsolutePath() + ". Field data invalid.", e );
                 return false;
             }
         } else {
             // tag not implented
-            Logger.getLogger(TrackAnalyzer.class.getName()).log(
-                    Level.WARNING,
-                    "couldn't write key information for "
-                            + audioFile.getFile().getName()
-                            + " to tag, because this format is not supported.");
+            log.warn("Could not write key information for audio file " + audioFile.getFile().getAbsolutePath() + " to tag because tag format " + tag.getClass().getCanonicalName() + " is not supported.");
             return false;
         }
-
+        
         // write changes in tag to file
         try {
             audioFile.commit();

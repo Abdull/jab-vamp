@@ -24,11 +24,20 @@ public class UnicodeFilenameTest {
     @Rule
     public TemporaryFolder tempFolder = new TemporaryFolder();
     
+    
+    @Test
+    public void runJabvampWithDebugFlag() throws Exception {
+        TrackAnalyzer.main(new String[]{"--debug", MAJORANA_PATH});
+    }
+    
+    @Test
+    public void analyzeFileWithoutUnicodeCharacters() throws Exception {
+        TrackAnalyzer.main(new String[]{MAJORANA_PATH});
+    }
+    
     @Test
     public void analyzeFileWithUnicodeCharacters() throws Exception {
-        log.info("About to start TrackAnalyzer");
-        TrackAnalyzer.main(new String[]{"--debug", MAJORANA_PATH});
-        //TrackAnalyzer.main(new String[]{MAJORANA_PATH_UNICODE});
+        TrackAnalyzer.main(new String[]{MAJORANA_PATH_UNICODE});
     }
     
     @Test
