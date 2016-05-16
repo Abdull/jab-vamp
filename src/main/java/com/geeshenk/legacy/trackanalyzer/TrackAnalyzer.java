@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URL;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,6 +46,11 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+
+import net.bramp.ffmpeg.FFmpeg;
+import net.bramp.ffmpeg.FFmpegExecutor;
+import net.bramp.ffmpeg.FFprobe;
+import net.bramp.ffmpeg.builder.FFmpegBuilder;
 
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
@@ -207,7 +213,7 @@ public class TrackAnalyzer {
         
         return result;
     }
-
+    
     /**
      * Decodes an audio file (mp3, flac, wav, etc. everything which can be
      * decoded by ffmpeg) to a downsampled wav file.
@@ -220,9 +226,7 @@ public class TrackAnalyzer {
      * @throws InputFormatException
      * @throws EncoderException
      */
-    public static void decodeInputFileToWaveAudioFileWith4410Samples(File input, File wavoutput)
-            throws IllegalArgumentException, InputFormatException,
-            EncoderException {
+    private static void decodeInputFileToWaveAudioFileWith4410Samples(File input, File wavoutput) throws IOException {
         decodeInputFileToWaveAudioFile(input, wavoutput, 4410);
     }
     
@@ -240,18 +244,30 @@ public class TrackAnalyzer {
      * @throws InputFormatException
      * @throws EncoderException
      */
-    public static void decodeInputFileToWaveAudioFile(File input, File wavoutput, int samplerate) throws IllegalArgumentException,
-            InputFormatException, EncoderException {
-        assert wavoutput.getName().endsWith(".wav");
-        AudioAttributes audio = new AudioAttributes();
-        audio.setCodec("pcm_s16le");
-        audio.setChannels(Integer.valueOf(1));
-        audio.setSamplingRate(new Integer(samplerate));
-        EncodingAttributes attrs = new EncodingAttributes();
-        attrs.setFormat("wav");
-        attrs.setAudioAttributes(audio);
-        Encoder encoder = new Encoder();
-        encoder.encode(input, wavoutput, attrs);
+    private static void decodeInputFileToWaveAudioFile(File input, File wavoutput, int samplerate) throws IOException {
+        // input: any sound file
+        // waveoutput: pcm_s16le, 1 channel, sampling rate as specified
+        URL url = ClassLoader.getSystemResource("ffmpeg-20160428-git-78baa45-win64-static/bin/ffmpeg.exe");
+        String ffmpegPath = url.getPath();
+        FFmpeg ffmpeg = new FFmpeg(ffmpegPath);
+        FFprobe ffprobe = new FFprobe( ClassLoader.getSystemResource("ffmpeg-20160428-git-78baa45-win64-static/bin/ffprobe.exe").getPath() );
+        //String outputPath = "src/test/resources/output.mp4";
+        String outputPath = wavoutput.getAbsolutePath();
+        FFmpegBuilder builder = new FFmpegBuilder()
+          .setInput(input.getAbsolutePath() )     // Filename, or a FFmpegProbeResult
+          .overrideOutputFiles(true) // Override the output if it exists
+          .addOutput(outputPath)   // Filename for the destination
+            //.setFormat("wav")        // Format is inferred from filename, or can be set
+            .disableSubtitle()       // No subtiles
+            .setAudioChannels(1)         // Mono audio
+            .setAudioCodec("pcm_s16le")        // using the aac codec
+            .setAudioSampleRate(samplerate)  // at 48KHz
+            //.setAudioBitRate(32768)      // at 32 kbit/s
+            .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) // Allow FFmpeg to use experimental specs
+            .done();
+        FFmpegExecutor executor = new FFmpegExecutor(ffmpeg, ffprobe);
+       // Run a one-pass encode
+       executor.createJob(builder).run();
     }
     
     /**
