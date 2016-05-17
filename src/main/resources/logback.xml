@@ -11,4 +11,9 @@
   <root level="info">
     <appender-ref ref="STDOUT" />
   </root>
+  
+  <logger name="net.bramp" level="OFF">
+    <appender-ref ref="STDOUT" />
+  </logger>
+  
 </configuration>
