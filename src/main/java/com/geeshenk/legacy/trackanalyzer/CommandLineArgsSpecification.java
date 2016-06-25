@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CommandLineArgsSpecification {
+    
     @Parameter
     public List<String> providedAudioFilePaths = new ArrayList<>();
 	
@@ -22,7 +23,7 @@ public class CommandLineArgsSpecification {
 	public boolean noBpm = false;
 	
 	@Parameter(names = {"--file-list", "--filelist", "-l"}, description = "text file containing list of audio files")
-	public String listOfMusicFilesMaybeMagicEmptyStringFilePath = "";
+	public String pathToFileWithListOfMusicFilesMaybeMagicEmptyStringFilePath = "";
 
 	@Parameter(names = {"--help","-h","-?"}, help = true)
 	public boolean isHelpRequested;
