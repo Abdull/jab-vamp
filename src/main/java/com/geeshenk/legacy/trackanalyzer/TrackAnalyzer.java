@@ -119,7 +119,7 @@ public class TrackAnalyzer {
         }
         
         // check for (no audio files paths provided) or (help request)
-        if ( thisRuntimeArgsBuilder.providedAudioFilePaths.isEmpty() && Utils.isEmpty(thisRuntimeArgsBuilder.listOfMusicFilesMaybeMagicEmptyStringFilePath)
+        if ( thisRuntimeArgsBuilder.providedAudioFilePaths.isEmpty() && Utils.isEmpty(thisRuntimeArgsBuilder.pathToFileWithListOfMusicFilesMaybeMagicEmptyStringFilePath)
              ||  thisRuntimeArgsBuilder.isHelpRequested
            ) {
                thisRuntimeJCommanderConfiguration.usage();
@@ -127,9 +127,9 @@ public class TrackAnalyzer {
             }
         
         // check if it is requested to read in a file-with-a-list-of-audio-file...
-        if ( ! Utils.isEmpty(thisRuntimeArgsBuilder.listOfMusicFilesMaybeMagicEmptyStringFilePath)) {
+        if ( ! Utils.isEmpty(thisRuntimeArgsBuilder.pathToFileWithListOfMusicFilesMaybeMagicEmptyStringFilePath)) {
             
-            File audioFilesListFile = new File(thisRuntimeArgsBuilder.listOfMusicFilesMaybeMagicEmptyStringFilePath);
+            File audioFilesListFile = new File(thisRuntimeArgsBuilder.pathToFileWithListOfMusicFilesMaybeMagicEmptyStringFilePath);
             try (
                     FileReader audioFilesListFileReader = new FileReader(audioFilesListFile);
                     BufferedReader listOfMusicFilesBufferedReader = new BufferedReader(audioFilesListFileReader);
@@ -249,17 +249,21 @@ public class TrackAnalyzer {
         
         String outputPath = wavoutput.getAbsolutePath();
         FFmpegBuilder builder = new FFmpegBuilder()
-          .setInput(input.getAbsolutePath() )
+          .setInput( input.getAbsolutePath() ) 
+          // .setInput("\"" + input.getAbsolutePath() + "\"") // putting all path arguments within double quotes so that ffmpeg is happy, see http://stackoverflow.com/a/22780128/923560 
+        
           .overrideOutputFiles(true)
           .addOutput(outputPath)
-            .setAudioChannels(1)         // Mono audio
+            .setAudioChannels(1) // Mono audio
             .setAudioCodec("pcm_s16le")
             .setAudioSampleRate(samplerate)
             .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) // Allow FFmpeg to use experimental specs
             .done();
+        
         FFmpegExecutor executor = new FFmpegExecutor(ffmpeg, ffprobe);
-       // Run a one-pass encode
-       executor.createJob(builder).run();
+        // Run a one-pass encode
+        executor.createJob(builder).run();
+        
     }
     
     /**
@@ -387,7 +391,7 @@ public class TrackAnalyzer {
             if (Double.isNaN(bpm) && !thisRuntimeArgsBuilder.hiQuality) {
                 try {
                     // bpm couldn't be detected. try again with a higher-quality wav.
-                    log.warn("BPM could not be detected for " + originalAudioPath + ". Trying again with sound higher quality....");
+                    log.debug("BPM could not be detected for " + originalAudioPath + ". Trying again with sound higher quality....");
                     decodeInputFileToWaveAudioFile(new File(originalAudioPath), waveTempFile1, 44100);
                     bpm = BeatRoot.getBPM(tempAbsolutePath);
                     if (Double.isNaN(bpm)) {
